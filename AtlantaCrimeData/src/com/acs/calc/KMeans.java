@@ -21,13 +21,78 @@
 package com.acs.calc;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import com.acs.pojo.ClusterList;
+import com.acs.pojo.ClusterPoint;
+import com.acs.pojo.MartaCluster;
+
 import moa.cluster.CFCluster;
 import moa.cluster.Cluster;
 import moa.cluster.Clustering;
 import moa.cluster.SphereCluster;
 
 public class KMeans {
+    public static ArrayList<ClusterList<ClusterPoint>> kMeansPoints(Cluster[] centers, List<? extends Cluster> data ) {
+        int k = centers.length;
+
+        int dimensions = centers[0].getCenter().length;
+
+        ArrayList<ArrayList<Cluster>> clustering = new ArrayList<ArrayList<Cluster>>();
+        ArrayList<ClusterList<ClusterPoint>> ret = new ArrayList<ClusterList<ClusterPoint>>();
+        for ( int i = 0; i < k; i++ ) {
+            clustering.add( new ArrayList<Cluster>() );
+            ret.add( new ClusterList<ClusterPoint>(((MartaCluster)centers[i]).getStation()) );
+        }
+        for(int i = 0; i<centers.length;i++)
+        	ret.get(i).add(new ClusterPoint(centers[i]));
+
+        int repetitions = 56;
+        while ( repetitions-- >= 0 ) {
+            // Assign points to clusters
+            for ( Cluster point : data ) {
+                double minDistance = distance( point.getCenter(), centers[0].getCenter() );
+                int closestCluster = 0;
+                for ( int i = 1; i < k; i++ ) {
+                    double distance = distance( point.getCenter(), centers[i].getCenter() );
+                    if ( distance < minDistance ) {
+                        closestCluster = i;
+                        minDistance = distance;
+                    }
+                }
+
+                clustering.get( closestCluster ).add( point );
+            }
+
+            // Calculate new centers and clear clustering lists
+            SphereCluster[] newCenters = new SphereCluster[centers.length];
+            for ( int i = 0; i < k; i++ ) {
+            	SphereCluster sc = calculateCenter( clustering.get( i ), dimensions );
+            	sc.setId(i+1);
+                newCenters[i] = sc;
+                clustering.get( i ).clear();
+            }
+//            System.out.println("Repition: "+repetitions);
+            //System.out.println("Old Centers: "+Arrays.toString(centers));
+            //System.out.println("New Centers: "+Arrays.toString(newCenters));
+            String out= "{\"repition\":\""+(56-repetitions)+"\", \"clusters\":[";
+            for (SphereCluster s:newCenters)
+            	out+="{\"id\":\""+s.getId()+"\", \"Lat\":\""+s.getCenter()[0]+"\", \"Long\":\""+s.getCenter()[1]+"\", \"radius\":\""+s.getRadius()+"\"},";
+            out = out.substring(0, out.length()-1);
+            out+= "]}";
+            
+            
+            System.out.println(out);
+            
+            for(int i = 0; i<newCenters.length;i++)
+            	ret.get(i).add(new ClusterPoint(newCenters[i]));
+            
+            centers = newCenters;
+        }
+
+        return ret;
+    }
 
     public static Clustering kMeans(Cluster[] centers, List<? extends Cluster> data ) {
         int k = centers.length;
@@ -60,9 +125,21 @@ public class KMeans {
             // Calculate new centers and clear clustering lists
             SphereCluster[] newCenters = new SphereCluster[centers.length];
             for ( int i = 0; i < k; i++ ) {
-                newCenters[i] = calculateCenter( clustering.get( i ), dimensions );
+            	SphereCluster sc = calculateCenter( clustering.get( i ), dimensions );
+            	sc.setId(i+1);
+                newCenters[i] = sc;
                 clustering.get( i ).clear();
             }
+//            System.out.println("Repition: "+repetitions);
+            //System.out.println("Old Centers: "+Arrays.toString(centers));
+            //System.out.println("New Centers: "+Arrays.toString(newCenters));
+            String out= "{\"repition\":\""+(100-repetitions)+"\", \"clusters\":[";
+            for (SphereCluster s:newCenters)
+            	out+="{\"id\":\""+s.getId()+"\", \"Lat\":\""+s.getCenter()[0]+"\", \"Long\":\""+s.getCenter()[1]+"\", \"radius\":\""+s.getRadius()+"\"},";
+            out = out.substring(0, out.length()-1);
+            out+= "]}";
+            
+            System.out.println(out);
             centers = newCenters;
         }
 
@@ -70,12 +147,7 @@ public class KMeans {
     }
 
     private static double distance(double[] pointA, double [] pointB){
-        double distance = 0.0;
-        for (int i = 0; i < pointA.length; i++) {
-            double d = pointA[i] - pointB[i];
-            distance += d * d;
-        }
-        return Math.sqrt(distance);
+        return DistanceCalc.getM(pointA[0], pointA[1], pointB[0], pointB[1]);
     }
 
 
